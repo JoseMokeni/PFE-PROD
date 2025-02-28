@@ -1,0 +1,69 @@
+networks:
+  lecoursier:
+    external: true
+  traefik-public:
+    external: true
+
+services:
+  app-develop:
+    image: josemokeni/lecoursier-laravel-develop:latest
+    env_file:
+      - .env.develop
+    networks:
+      - lecoursier
+      - traefik-public
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Traefik labels
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`lecoursier.develop.josemokeni.cloud`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=leresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=80"
+    restart: unless-stopped
+
+  app-staging:
+    image: josemokeni/lecoursier-laravel-staging:latest
+    env_file:
+      - .env.staging
+    networks:
+      - lecoursier
+      - traefik-public
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Traefik labels
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`lecoursier.staging.josemokeni.cloud`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=leresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=80"
+    restart: unless-stopped
+
+  app:
+    image: josemokeni/lecoursier-laravel:latest
+    env_file:
+      - .env
+    networks:
+      - lecoursier
+      - traefik-public
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Traefik labels
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`lecoursier.josemokeni.cloud`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=leresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=80"
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 10 --cleanup --rolling-restart
+    environment:
+      - WATCHTOWER_TIMEOUT=60s
+      - WATCHTOWER_LABEL_ENABLE=true
+    networks:
+      - lecoursier
+    restart: unless-stopped
