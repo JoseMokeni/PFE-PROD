@@ -19,7 +19,7 @@ services:
       - "traefik.http.routers.app-develop.rule=Host(`lecoursier.develop.josemokeni.cloud`)"
       - "traefik.http.routers.app-develop.entrypoints=websecure"
       - "traefik.http.routers.app-develop.tls.certresolver=leresolver"
-      - "traefik.http.services.app-develop.loadbalancer.server.port=80"
+      - "traefik.http.services.app-develop.loadbalancer.server.port=8080"
       - "traefik.docker.network=traefik-public"
     restart: unless-stopped
 
@@ -37,7 +37,7 @@ services:
       - "traefik.http.routers.app-staging.rule=Host(`lecoursier.staging.josemokeni.cloud`)"
       - "traefik.http.routers.app-staging.entrypoints=websecure"
       - "traefik.http.routers.app-staging.tls.certresolver=leresolver"
-      - "traefik.http.services.app-staging.loadbalancer.server.port=80"
+      - "traefik.http.services.app-staging.loadbalancer.server.port=8080"
       - "traefik.docker.network=traefik-public"
     restart: unless-stopped
 
@@ -55,7 +55,7 @@ services:
       - "traefik.http.routers.app.rule=Host(`lecoursier.josemokeni.cloud`)"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls.certresolver=leresolver"
-      - "traefik.http.services.app.loadbalancer.server.port=80"
+      - "traefik.http.services.app.loadbalancer.server.port=8080"
       - "traefik.docker.network=traefik-public"
     restart: unless-stopped
 
