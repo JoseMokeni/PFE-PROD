@@ -7,7 +7,7 @@ data:
   APP_ENV: "local"
   APP_DEBUG: "false"
   APP_TIMEZONE: "UTC"
-  APP_URL: "http://lecoursier.kubernetes:30448"
+  APP_URL: "http://lecoursier.kubernetes:30000"
 
   CENTRAL_DOMAINS: lecoursier.kubernetes
 
