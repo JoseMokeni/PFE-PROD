@@ -7,9 +7,9 @@ data:
   APP_ENV: "local"
   APP_DEBUG: "false"
   APP_TIMEZONE: "UTC"
-  APP_URL: "http://lecoursier.kubernetes:30000"
+  APP_URL: "http://lecoursier.kubernetes.josemokeni.cloud"
 
-  CENTRAL_DOMAINS: lecoursier.kubernetes
+  CENTRAL_DOMAINS: "lecoursier.kubernetes.josemokeni.cloud"
 
   DB_CONNECTION: "pgsql"
   DB_PORT: "5432"

@@ -7,8 +7,7 @@ spec:
     app: lecoursier
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8080
       protocol: TCP
-      # node port definition
-      nodePort: 30100
-  type: NodePort
+
+  type: LoadBalancer
