@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lecoursier-app
+  labels:
+    app: lecoursier
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lecoursier
+  template:
+    metadata:
+      labels:
+        app: lecoursier
+    spec:
+      containers:
+        - name: lecoursier-app
+          image: josemokeni/lecoursier-laravel-develop:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: lecoursier-config
+            - secretRef:
+                name: lecoursier-secrets
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
