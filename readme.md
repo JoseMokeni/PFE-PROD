@@ -25,11 +25,15 @@ docker-compose up -d
 ```bash
 docker-compose exec app composer install
 ```
-6. Run the following command to generate the application key:
+6. Change the permissions of .env file:
+```bash
+docker-compose exec app chmod 644 .env
+```
+7. Run the following command to generate the application key:
 ```bash
 docker-compose exec app php artisan key:generate
 ```
-7. Run the following command to run the migrations:
+8. Run the following command to run the migrations:
 ```bash
 docker-compose exec app php artisan migrate
 ```

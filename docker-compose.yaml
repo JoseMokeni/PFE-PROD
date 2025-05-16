@@ -7,13 +7,12 @@ networks:
 services:
   app-develop:
     image: josemokeni/lecoursier-laravel-develop:latest
-    env_file:
-      - .env.develop
     networks:
       - lecoursier
       - traefik-public
     volumes:
       - ./docker/firebase/service-account.json:/var/www/html/storage/app/json/service-account.json
+      - ./.env.develop:/var/www/html/.env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       # Traefik labels
@@ -27,13 +26,12 @@ services:
 
   app-staging:
     image: josemokeni/lecoursier-laravel-staging:latest
-    env_file:
-      - .env.staging
     networks:
       - lecoursier
       - traefik-public
     volumes:
       - ./docker/firebase/service-account.json:/var/www/html/storage/app/json/service-account.json
+      - ./.env.staging:/var/www/html/.env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       # Traefik labels
@@ -47,13 +45,12 @@ services:
 
   app:
     image: josemokeni/lecoursier-laravel:latest
-    env_file:
-      - .env
     networks:
       - lecoursier
       - traefik-public
     volumes:
       - ./docker/firebase/service-account.json:/var/www/html/storage/app/json/service-account.json
+      - ./.env:/var/www/html/.env
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
       # Traefik labels
