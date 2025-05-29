@@ -1,0 +1,62 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lecoursier-traefik-ingress
+  annotations:
+    # Traefik annotations
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    # Optional: Redirect HTTP to HTTPS
+    traefik.ingress.kubernetes.io/redirect-entry-point: websecure
+    # Optional: Enable compression
+    traefik.ingress.kubernetes.io/router.middlewares: default-compress@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - lecoursier.example.com # Change to your actual domain
+        - mailhog.example.com # Change to your actual domain
+        - redis.example.com # Change to your actual domain
+        - pgadmin.example.com # Change to your actual domain
+      secretName: lecoursier-tls
+  rules:
+    - host: lecoursier.example.com # Change to your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lecoursier-service
+                port:
+                  number: 80
+    - host: mailhog.example.com # Change to your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mailhog-web-service
+                port:
+                  number: 8025
+    - host: redis.example.com # Change to your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: redis-commander-service
+                port:
+                  number: 8081
+    - host: pgadmin.example.com # Change to your actual domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgadmin-service
+                port:
+                  number: 80

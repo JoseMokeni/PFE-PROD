@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+data:
+  traefik.yml: |
+    # Traefik static configuration
+    global:
+      checkNewVersion: false
+      sendAnonymousUsage: false
+
+    # API and dashboard configuration
+    api:
+      dashboard: true
+      insecure: true
+
+    # Entry points
+    entryPoints:
+      web:
+        address: ":80"
+        http:
+          redirections:
+            entrypoint:
+              to: websecure
+              scheme: https
+              permanent: true
+      websecure:
+        address: ":443"
+
+    # Providers
+    providers:
+      kubernetesIngress:
+        ingressClass: traefik
+        allowExternalNameServices: true
+      kubernetesCRD: {}
+
+    # Certificate resolvers for automatic HTTPS
+    certificatesResolvers:
+      letsencrypt:
+        acme:
+          email: your-email@example.com  # Change this to your email
+          storage: /data/acme.json
+          keyType: EC256
+          httpChallenge:
+            entryPoint: web
+          # For wildcard certificates, use DNS challenge instead:
+          # dnsChallenge:
+          #   provider: cloudflare  # Change to your DNS provider
+          #   delayBeforeCheck: 30
+
+    # Logs
+    log:
+      level: INFO
+    accessLog: {}
+
+    # Metrics (optional)
+    metrics:
+      prometheus:
+        addEntryPointsLabels: true
+        addServicesLabels: true

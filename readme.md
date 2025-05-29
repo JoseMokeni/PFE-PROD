@@ -174,304 +174,249 @@ cd PFE-PROD
 - **Redis Commander**: http://redis.kubernetes (admin/admin)
 - **pgAdmin**: http://pgadmin.kubernetes (admin@pgadmin.com/admin)
 
-### Detailed Kubernetes Setup
+## Traefik Ingress with Automatic HTTPS
 
-#### 1. Firebase Configuration (Optional)
+### Overview
 
-If you're using Firebase for push notifications:
+Traefik is a modern reverse proxy and load balancer that provides automatic HTTPS certificate management through Let's Encrypt integration. This setup eliminates the need for manual SSL certificate management.
+
+### Benefits of Traefik
+
+- **Automatic HTTPS**: Automatically obtains and renews SSL certificates from Let's Encrypt
+- **Modern Dashboard**: Built-in web UI for monitoring and management
+- **Service Discovery**: Automatically discovers new services and routes
+- **Middleware Support**: Built-in compression, rate limiting, and security headers
+- **Production Ready**: Excellent performance and reliability
+
+### Prerequisites for Traefik Setup
+
+1. **Domain Names**: You need actual domain names pointing to your cluster
+2. **Public IP**: Your Kubernetes cluster must be accessible from the internet
+3. **Valid Email**: Required for Let's Encrypt certificate registration
+4. **Port Access**: Ports 80 and 443 must be accessible from the internet
+
+### Traefik Deployment
+
+#### 1. Update Configuration
+
+Before deploying, update the following files:
+
+**Update your email in `kubernetes/traefik-config.yaml`:**
 
 ```bash
-# 1. Download your Firebase service account JSON from Firebase Console
-# 2. Place it at: ./docker/firebase/service-account.json
-# 3. Update the Kubernetes secret:
-./kubernetes/update-firebase.sh
+# Edit the configuration file
+vim kubernetes/traefik-config.yaml
+
+# Change this line:
+email: your-email@example.com  # Change to your actual email
 ```
 
-#### 2. Environment Configuration
+**Update your domains in `kubernetes/traefik-ingress.yaml`:**
 
-The application configuration is managed through Kubernetes ConfigMaps and Secrets:
+```bash
+# Edit the ingress file
+vim kubernetes/traefik-ingress.yaml
 
-- **ConfigMap** (`app-configmap.yaml`): Non-sensitive configuration
-- **Secrets** (`app-secret.yaml`): Database credentials, API keys, etc.
+# Replace example.com with your actual domain:
+# - lecoursier.example.com  →  lecoursier.yourdomain.com
+# - mailhog.example.com    →  mailhog.yourdomain.com
+# - redis.example.com      →  redis.yourdomain.com
+# - pgadmin.example.com    →  pgadmin.yourdomain.com
+```
 
-Update the configuration files as needed before deployment.
+#### 2. Deploy with Traefik
 
-##### Switching Between Environments
+```bash
+# Deploy all services with Traefik
+./kubernetes/deploy-traefik.sh
+```
 
-To deploy different environments (develop/staging/production), update the image in `kubernetes/app-deployment.yaml`:
+#### 3. DNS Configuration
+
+Point your domain names to your cluster's external IP:
+
+```bash
+# Get your cluster's external IP
+kubectl get service traefik
+
+# Add DNS A records:
+# lecoursier.yourdomain.com  →  CLUSTER_EXTERNAL_IP
+# mailhog.yourdomain.com     →  CLUSTER_EXTERNAL_IP
+# redis.yourdomain.com       →  CLUSTER_EXTERNAL_IP
+# pgadmin.yourdomain.com     →  CLUSTER_EXTERNAL_IP
+```
+
+### Traefik Management
+
+#### Access Traefik Dashboard
+
+```bash
+# Get Traefik service details
+kubectl get service traefik
+
+# Access dashboard at:
+# http://CLUSTER_EXTERNAL_IP:8080
+# or
+# kubectl port-forward service/traefik 8080:8080
+# Then access: http://localhost:8080
+```
+
+#### Monitor SSL Certificates
+
+```bash
+# Check certificate status in Traefik dashboard
+# OR check ingress status
+kubectl describe ingress lecoursier-traefik-ingress
+
+# Check Traefik logs for certificate issues
+kubectl logs -l app=traefik -f
+```
+
+#### SSL Certificate Troubleshooting
+
+```bash
+# Check ACME (Let's Encrypt) storage
+kubectl exec -it $(kubectl get pods -l app=traefik -o jsonpath='{.items[0].metadata.name}') -- ls -la /data/
+
+# View certificate details
+kubectl exec -it $(kubectl get pods -l app=traefik -o jsonpath='{.items[0].metadata.name}') -- cat /data/acme.json
+
+# Force certificate renewal (delete acme.json to retry)
+kubectl exec -it $(kubectl get pods -l app=traefik -o jsonpath='{.items[0].metadata.name}') -- rm /data/acme.json
+kubectl rollout restart deployment traefik
+```
+
+### Traefik vs Nginx Ingress
+
+| Feature               | Traefik                   | Nginx Ingress            |
+| --------------------- | ------------------------- | ------------------------ |
+| **Auto HTTPS**        | ✅ Built-in Let's Encrypt | ❌ Requires cert-manager |
+| **Dashboard**         | ✅ Built-in web UI        | ❌ No built-in dashboard |
+| **Configuration**     | ✅ Simple annotations     | ⚠️ Complex configuration |
+| **Performance**       | ✅ Excellent              | ✅ Excellent             |
+| **Service Discovery** | ✅ Automatic              | ⚠️ Manual configuration  |
+| **Learning Curve**    | ✅ Easy                   | ⚠️ Moderate              |
+
+### Production Considerations for Traefik
+
+1. **DNS Challenge**: For wildcard certificates, use DNS challenge instead of HTTP:
 
 ```yaml
-# For Development
-image: josemokeni/lecoursier-laravel-develop:latest
-
-# For Staging
-image: josemokeni/lecoursier-laravel-staging:latest
-
-# For Production
-image: josemokeni/lecoursier-laravel:latest
+# In traefik-config.yaml
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: your-email@example.com
+      storage: /data/acme.json
+      dnsChallenge:
+        provider: cloudflare # or your DNS provider
+        delayBeforeCheck: 30
 ```
 
-You may also need to update environment-specific variables in the ConfigMap and Secrets files.
+2. **Resource Scaling**: Adjust resources based on load:
 
-#### 3. Persistent Storage
+```yaml
+# In traefik-deployment.yaml
+resources:
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+```
 
-The setup includes persistent volumes for:
+3. **High Availability**: Run multiple Traefik replicas:
 
-- **PostgreSQL**: 10GB for database data
-- **Redis**: 5GB for cache persistence
-- **pgAdmin**: 2GB for pgAdmin configuration
+```yaml
+# In traefik-deployment.yaml
+spec:
+  replicas: 3 # For high availability
+```
 
-#### 4. Resource Allocation
+4. **Monitoring**: Enable metrics and integrate with monitoring tools:
 
-Each service has defined resource limits:
+```yaml
+# In traefik-config.yaml
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+```
 
-- **PostgreSQL**: 1 CPU, 1GB RAM
-- **Redis**: 500m CPU, 512MB RAM
-- **Laravel App**: 500m CPU, 512MB RAM (2 replicas)
-- **MailHog**: 200m CPU, 256MB RAM
-- **Redis Commander**: 200m CPU, 256MB RAM
-- **pgAdmin**: 500m CPU, 512MB RAM
+### Switching Between Ingress Controllers
 
-### Management Commands
-
-#### View Deployment Status
+If you want to switch back to Nginx ingress:
 
 ```bash
-# Check all pods
-kubectl get pods
+# Remove Traefik ingress
+kubectl delete -f kubernetes/traefik-ingress.yaml
 
-# Check services
-kubectl get services
+# Apply original Nginx ingress
+kubectl apply -f kubernetes/ingress.yaml
 
-# Check ingress
-kubectl get ingress
-
-# Check persistent volumes
-kubectl get pv,pvc
+# Or remove Traefik completely
+kubectl delete -f kubernetes/traefik-deployment.yaml
+kubectl delete -f kubernetes/traefik-service.yaml
+kubectl delete -f kubernetes/traefik-config.yaml
+kubectl delete -f kubernetes/traefik-rbac.yaml
 ```
 
-#### Logs and Debugging
+### Traefik Service Access URLs
+
+Once deployed with your actual domains:
+
+- **🚀 Application**: `https://lecoursier.yourdomain.com`
+- **📊 Traefik Dashboard**: `http://CLUSTER_IP:8080`
+- **📧 Mailhog**: `https://mailhog.yourdomain.com`
+- **🔴 Redis Commander**: `https://redis.yourdomain.com`
+- **🐘 pgAdmin**: `https://pgadmin.yourdomain.com`
+
+All services will automatically have SSL certificates from Let's Encrypt!
+
+## Quick Reference
+
+### Available Scripts
+
+| Script                 | Purpose                                  | Usage                               |
+| ---------------------- | ---------------------------------------- | ----------------------------------- |
+| `setup-ingress.sh`     | Interactive ingress controller selection | `./kubernetes/setup-ingress.sh`     |
+| `configure-traefik.sh` | Configure Traefik with your domain/email | `./kubernetes/configure-traefik.sh` |
+| `deploy.sh`            | Deploy with Nginx ingress (local dev)    | `./kubernetes/deploy.sh`            |
+| `deploy-traefik.sh`    | Deploy with Traefik ingress (production) | `./kubernetes/deploy-traefik.sh`    |
+| `setup-hosts.sh`       | Add local DNS entries for Nginx          | `./kubernetes/setup-hosts.sh`       |
+| `update-firebase.sh`   | Update Firebase credentials              | `./kubernetes/update-firebase.sh`   |
+
+### Quick Setup Commands
+
+**For Local Development (Nginx):**
 
 ```bash
-# View application logs
-kubectl logs -l app=lecoursier -f
-
-# View specific service logs
-kubectl logs -l app=postgres -f
-kubectl logs -l app=redis -f
-
-# Execute commands in application pod
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- bash
+cd kubernetes
+./setup-ingress.sh  # Choose option 1
 ```
 
-#### Database Management
-
-##### Database Migrations
-
-**Initial Setup (First Deployment):**
+**For Production (Traefik):**
 
 ```bash
-# Wait for all pods to be ready
-kubectl wait --for=condition=ready pod -l app=lecoursier --timeout=300s
-kubectl wait --for=condition=ready pod -l app=postgres --timeout=300s
-
-# Run initial migrations
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate --force
-
-# Seed database (if needed)
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan db:seed --force
+cd kubernetes
+./configure-traefik.sh  # Configure your domain/email
+./setup-ingress.sh      # Choose option 2
 ```
 
-**Running Migrations After Updates:**
+### Service URLs Summary
 
-```bash
-# Check migration status
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate:status
+**With Nginx Ingress (Local):**
 
-# Run pending migrations
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate --force
+- Application: `http://lecoursier.kubernetes`
+- MailHog: `http://mailhog.kubernetes`
+- Redis Commander: `http://redis.kubernetes`
+- pgAdmin: `http://pgadmin.kubernetes`
 
-# Rollback migrations (if needed)
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate:rollback --force
-```
+**With Traefik Ingress (Production):**
 
-**Database Backup and Restore:**
-
-```bash
-# Create database backup
-kubectl exec -it $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- pg_dump -U postgres lecoursier-local-kubernetes > backup.sql
-
-# Restore database from backup
-kubectl exec -i $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres lecoursier-local-kubernetes < backup.sql
-```
-
-**Direct Database Access:**
-
-```bash
-# Connect to PostgreSQL directly via command line
-kubectl exec -it $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d lecoursier-local-kubernetes
-
-# Or use pgAdmin web interface at http://pgadmin.kubernetes
-# Default credentials: admin@example.com / admin (change in pgadmin-secret.yaml)
-```
-
-**Migration Troubleshooting:**
-
-```bash
-# Check database connection from app
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan tinker --execute="DB::connection()->getPdo();"
-
-# Check database tables
-kubectl exec -it $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d lecoursier-local-kubernetes -c "\dt"
-
-# Reset migrations (DANGER: Will drop all tables)
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate:fresh --force
-```
-
-#### Application Management
-
-**Laravel Artisan Commands:**
-
-```bash
-# Get the application pod name (for convenience)
-APP_POD=$(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}')
-
-# Application maintenance
-kubectl exec -it $APP_POD -- php artisan down
-kubectl exec -it $APP_POD -- php artisan up
-
-# Cache management
-kubectl exec -it $APP_POD -- php artisan cache:clear
-kubectl exec -it $APP_POD -- php artisan config:cache
-kubectl exec -it $APP_POD -- php artisan route:cache
-kubectl exec -it $APP_POD -- php artisan view:cache
-
-# Queue management
-kubectl exec -it $APP_POD -- php artisan queue:work --daemon
-kubectl exec -it $APP_POD -- php artisan queue:restart
-
-# Storage and file management
-kubectl exec -it $APP_POD -- php artisan storage:link
-
-# Generate application key (if needed)
-kubectl exec -it $APP_POD -- php artisan key:generate --force
-```
-
-### Updating the Application
-
-#### Update Application Image
-
-```bash
-# Update the image in app-deployment.yaml
-# Then apply the changes:
-kubectl apply -f kubernetes/app-deployment.yaml
-
-# Or restart the deployment to pull latest image:
-kubectl rollout restart deployment/lecoursier-app
-```
-
-#### Update Configuration
-
-```bash
-# After modifying ConfigMaps or Secrets:
-kubectl apply -f kubernetes/app-configmap.yaml
-kubectl apply -f kubernetes/app-secret.yaml
-
-# Restart the application to pick up changes:
-kubectl rollout restart deployment/lecoursier-app
-```
-
-### Scaling
-
-#### Scale Application
-
-```bash
-# Scale to 3 replicas
-kubectl scale deployment lecoursier-app --replicas=3
-
-# Scale to 1 replica
-kubectl scale deployment lecoursier-app --replicas=1
-```
-
-### Cleanup
-
-```bash
-# Delete all resources
-kubectl delete -f kubernetes/
-
-# Or delete specific resources
-kubectl delete deployment,service,configmap,secret,pvc,ingress -l app=lecoursier
-```
-
-### Production Considerations
-
-For production deployment, consider:
-
-1. **External Database**: Use managed PostgreSQL service
-2. **External Redis**: Use managed Redis service
-3. **Image Registry**: Use private container registry
-4. **SSL/TLS**: Configure proper SSL certificates
-5. **Monitoring**: Add monitoring and logging solutions
-6. **Backup**: Implement backup strategies for persistent data
-7. **Security**: Review and harden security configurations
-8. **Resource Limits**: Adjust resource allocations based on load testing
-
-### Troubleshooting
-
-#### Common Issues
-
-**Pods not starting:**
-
-```bash
-kubectl describe pod <pod-name>
-kubectl logs <pod-name>
-```
-
-**Ingress not working:**
-
-```bash
-# Check if Ingress controller is running
-kubectl get pods -n ingress-nginx
-
-# Check Ingress configuration
-kubectl describe ingress lecoursier-ingress
-```
-
-**Database connection issues:**
-
-```bash
-# Check if PostgreSQL is running
-kubectl get pods -l app=postgres
-
-# Check service endpoints
-kubectl get endpoints postgres-service
-
-# Test database connection from app
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan tinker --execute="DB::connection()->getPdo();"
-
-# Check database exists
-kubectl exec -it $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -c "\l"
-```
-
-**Migration issues:**
-
-```bash
-# Check migration status
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate:status
-
-# Force run migrations
-kubectl exec -it $(kubectl get pods -l app=lecoursier -o jsonpath='{.items[0].metadata.name}') -- php artisan migrate --force
-
-# Check if migrations table exists
-kubectl exec -it $(kubectl get pods -l app=postgres -o jsonpath='{.items[0].metadata.name}') -- psql -U postgres -d lecoursier-local-kubernetes -c "\dt migrations"
-```
-
-**Storage issues:**
-
-```bash
-# Check persistent volumes
-kubectl get pv,pvc
-
-# Check storage class
-kubectl get storageclass
-```
+- Application: `https://lecoursier.yourdomain.com`
+- MailHog: `https://mailhog.yourdomain.com`
+- Redis Commander: `https://redis.yourdomain.com`
+- pgAdmin: `https://pgadmin.yourdomain.com`
+- Traefik Dashboard: `http://cluster-ip:8080`
