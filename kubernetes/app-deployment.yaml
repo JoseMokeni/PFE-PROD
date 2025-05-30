@@ -24,6 +24,10 @@ spec:
                 name: lecoursier-config
             - secretRef:
                 name: lecoursier-secrets
+          volumeMounts:
+            - name: firebase-service-account
+              mountPath: /var/www/html/storage/app/json
+              readOnly: true
           resources:
             limits:
               cpu: "500m"
@@ -31,3 +35,7 @@ spec:
             requests:
               cpu: "200m"
               memory: "256Mi"
+      volumes:
+        - name: firebase-service-account
+          secret:
+            secretName: firebase-secret

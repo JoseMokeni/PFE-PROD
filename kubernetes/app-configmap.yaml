@@ -7,14 +7,14 @@ data:
   APP_ENV: "local"
   APP_DEBUG: "false"
   APP_TIMEZONE: "UTC"
-  APP_URL: "http://lecoursier.kubernetes.josemokeni.cloud"
+  APP_URL: "http://lecoursier.kubernetes"
 
-  CENTRAL_DOMAINS: "lecoursier.kubernetes.josemokeni.cloud"
+  CENTRAL_DOMAINS: "lecoursier.kubernetes"
 
   DB_CONNECTION: "pgsql"
   DB_PORT: "5432"
 
-  SESSION_DRIVER: database
+  SESSION_DRIVER: redis
   SESSION_LIFETIME: "120"
   SESSION_ENCRYPT: "false"
   SESSION_PATH: "/"
@@ -22,9 +22,15 @@ data:
 
   BROADCAST_CONNECTION: "log"
   FILESYSTEM_DISK: "local"
-  QUEUE_CONNECTION: "database"
+  QUEUE_CONNECTION: "redis"
 
-  CACHE_STORE: database
+  CACHE_STORE: redis
+  CACHE_DRIVER: redis
+
+  REDIS_HOST: redis-service
+  REDIS_PASSWORD: "null"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
 
   MAIL_MAILER: "mailhog"
   MAIL_SCHEME: "null"
