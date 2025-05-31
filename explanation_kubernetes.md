@@ -543,3 +543,211 @@ The deployment is ready for production use and can be easily scaled, monitored, 
 **Last Updated**: May 29, 2025  
 **Author**: Technical Documentation Team  
 **Review Status**: Technical Review Complete
+
+## Autoscaling Implementation
+
+### Overview
+
+The LeCoursier application now includes comprehensive autoscaling capabilities to handle varying loads automatically while optimizing resource utilization and maintaining high availability.
+
+### Autoscaling Components
+
+#### 1. Horizontal Pod Autoscaler (HPA)
+
+- **File**: `app-hpa.yaml`
+- **Purpose**: Automatically scales the number of pod replicas based on resource utilization
+- **Configuration**:
+  - **Min Replicas**: 2 (High Availability)
+  - **Max Replicas**: 10 (Cost Control)
+  - **CPU Threshold**: 70% (Scale up when average CPU exceeds 70%)
+  - **Memory Threshold**: 80% (Scale up when average memory exceeds 80%)
+  - **Scale Up Behavior**: Maximum 100% increase or 2 pods per 60 seconds
+  - **Scale Down Behavior**: Maximum 50% decrease per 5 minutes (stabilization)
+
+**Features**:
+
+- Prevents rapid oscillation with stabilization windows
+- Dual metrics (CPU + Memory) for comprehensive scaling decisions
+- Conservative scaling policies for production stability
+
+#### 2. Vertical Pod Autoscaler (VPA)
+
+- **File**: `app-vpa.yaml`
+- **Purpose**: Automatically optimizes CPU and memory requests/limits
+- **Configuration**:
+  - **Update Mode**: Auto (automatically applies recommendations)
+  - **CPU Range**: 100m - 1000m
+  - **Memory Range**: 128Mi - 1Gi
+  - **Controlled Values**: Both requests and limits
+
+**Benefits**:
+
+- Right-sizes containers based on actual usage patterns
+- Reduces resource waste and improves cost efficiency
+- Automatically adapts to application behavior changes
+
+#### 3. Pod Disruption Budget (PDB)
+
+- **File**: `app-pdb.yaml`
+- **Purpose**: Ensures high availability during scaling operations
+- **Configuration**:
+  - **Min Available**: 1 pod always running
+  - **Prevents**: Simultaneous termination of all pods during updates
+
+#### 4. Enhanced Health Checks
+
+- **Simplified Setup**: Minimal configuration for basic functionality
+- **Benefits**: Ensures stable pod lifecycle during scaling operations
+
+### Autoscaling Management
+
+#### Management Script
+
+A comprehensive management script is provided: `manage-autoscaling.sh`
+
+**Available Commands**:
+
+```bash
+# Complete setup with prerequisites
+./manage-autoscaling.sh setup
+
+# Deploy autoscaling components
+./manage-autoscaling.sh deploy
+
+# Check current status and metrics
+./manage-autoscaling.sh status
+
+# Run load test to trigger scaling
+./manage-autoscaling.sh test
+
+# Remove autoscaling components
+./manage-autoscaling.sh remove
+
+# Show monitoring commands
+./manage-autoscaling.sh monitor
+```
+
+#### Prerequisites Installation
+
+The script automatically handles:
+
+- **Metrics Server**: Required for HPA functionality
+- **VPA Controller**: Optional but recommended for resource optimization
+- **Configuration Validation**: Ensures proper setup
+
+#### Monitoring and Observability
+
+**Real-time Monitoring**:
+
+```bash
+# Watch scaling in real-time
+watch kubectl get pods,hpa
+
+# View detailed metrics
+kubectl top pods -l app=lecoursier
+
+# Check autoscaling events
+kubectl get events --sort-by=.metadata.creationTimestamp | grep -i scale
+```
+
+**Key Metrics Tracked**:
+
+- Pod replica count
+- CPU and memory utilization
+- Scaling events and decisions
+- Resource recommendations (VPA)
+
+### Integration with Deployment Scripts
+
+Autoscaling is automatically included in both deployment options:
+
+#### Nginx Deployment (Development)
+
+```bash
+./deploy.sh  # Now includes HPA, PDB, and health checks
+```
+
+#### Traefik Deployment (Production)
+
+```bash
+./deploy-traefik.sh  # Now includes HPA, PDB, and health checks
+```
+
+### Autoscaling Behavior Examples
+
+#### Scale Up Scenario
+
+1. **Trigger**: Application load increases, CPU usage > 70%
+2. **Action**: HPA adds 1-2 new pods (max 100% increase)
+3. **Stabilization**: Waits 60 seconds before next scaling decision
+4. **Deployment**: New pods are deployed and become available
+
+#### Scale Down Scenario
+
+1. **Trigger**: Application load decreases, CPU usage < 70% for 5 minutes
+2. **Action**: HPA removes pods gradually (max 50% decrease)
+3. **Protection**: PDB ensures minimum 1 pod always available
+4. **Grace Period**: Pods are gracefully terminated
+
+### Production Considerations
+
+#### Resource Optimization
+
+- **Initial Sizing**: Requests set at 200m CPU, 256Mi memory
+- **VPA Recommendations**: Continuously optimized based on actual usage
+- **Limits**: Prevent resource hogging (500m CPU, 512Mi memory)
+
+#### High Availability
+
+- **Minimum Replicas**: Always maintain at least 2 pods
+- **Pod Disruption Budget**: Prevents complete service outages
+- **Graceful Scaling**: Ensures smooth scaling operations
+
+#### Cost Management
+
+- **Maximum Replicas**: Limited to 10 pods (configurable)
+- **Efficient Scaling**: VPA prevents over-provisioning
+- **Stabilization**: Prevents unnecessary scaling oscillations
+
+### Troubleshooting
+
+#### Common Issues and Solutions
+
+**HPA Shows "Unknown" Metrics**:
+
+```bash
+# Check metrics server
+kubectl get pods -n kube-system | grep metrics-server
+
+# For Minikube, add insecure TLS flag
+kubectl patch deployment metrics-server -n kube-system --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+```
+
+**Pods Not Scaling**:
+
+```bash
+# Verify resource requests are set
+kubectl describe deployment lecoursier-app | grep -A 10 Resources
+
+# Check HPA status
+kubectl describe hpa lecoursier-app-hpa
+```
+
+### Advanced Features
+
+#### Load Testing
+
+Built-in load testing capability to validate autoscaling behavior:
+
+```bash
+./manage-autoscaling.sh test
+```
+
+This autoscaling implementation ensures your LeCoursier application can:
+
+- **Scale automatically** based on real-time demand
+- **Maintain high availability** during scaling operations
+- **Optimize resource usage** for cost efficiency
+- **Handle traffic spikes** without manual intervention
+- **Provide consistent performance** under varying loads

@@ -374,6 +374,52 @@ Once deployed with your actual domains:
 
 All services will automatically have SSL certificates from Let's Encrypt!
 
+## Autoscaling
+
+### Quick Autoscaling Setup
+
+The Kubernetes deployment includes comprehensive autoscaling capabilities:
+
+```bash
+# Complete autoscaling setup (includes prerequisites)
+cd kubernetes
+./manage-autoscaling.sh setup
+
+# Check autoscaling status
+./manage-autoscaling.sh status
+
+# Test autoscaling with load
+./manage-autoscaling.sh test
+```
+
+### Autoscaling Features
+
+- **Horizontal Pod Autoscaler (HPA)**: Automatically scales replicas (2-10 pods)
+- **Vertical Pod Autoscaler (VPA)**: Optimizes resource requests/limits
+- **Pod Disruption Budget (PDB)**: Ensures high availability during scaling
+- **Simplified Configuration**: Minimal setup for reliable scaling
+
+### Autoscaling Triggers
+
+- **Scale Up**: When CPU > 70% or Memory > 80%
+- **Scale Down**: After 5 minutes of low utilization
+- **Resource Optimization**: VPA continuously adjusts resource allocation
+
+### Monitoring Autoscaling
+
+```bash
+# Real-time monitoring
+watch kubectl get pods,hpa
+
+# Resource usage
+kubectl top pods -l app=lecoursier
+
+# Scaling events
+kubectl get events | grep -i scale
+```
+
+**Note**: Autoscaling is automatically included in both `deploy.sh` and `deploy-traefik.sh` scripts.
+
 ## Quick Reference
 
 ### Available Scripts

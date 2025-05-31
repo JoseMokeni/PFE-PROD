@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lecoursier-app-monitor
+  labels:
+    app: lecoursier
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: lecoursier
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /metrics
+      honorLabels: true

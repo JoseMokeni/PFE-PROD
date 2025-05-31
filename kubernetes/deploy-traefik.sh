@@ -81,6 +81,12 @@ kubectl apply -f app-secret.yaml
 kubectl apply -f app-deployment.yaml
 kubectl apply -f app-service.yaml
 
+echo "🛡️ Creating Pod Disruption Budget..."
+kubectl apply -f app-pdb.yaml
+
+echo "⚡ Creating Horizontal Pod Autoscaler..."
+kubectl apply -f app-hpa.yaml
+
 # Wait for application to be ready
 wait_for_deployment lecoursier-app
 

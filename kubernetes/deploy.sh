@@ -44,6 +44,12 @@ kubectl wait --for=condition=ready pod -l app=pgadmin --timeout=300s
 echo "Creating Application Deployment..."
 kubectl apply -f app-deployment.yaml
 
+echo "Creating Pod Disruption Budget..."
+kubectl apply -f app-pdb.yaml
+
+echo "Creating Horizontal Pod Autoscaler..."
+kubectl apply -f app-hpa.yaml
+
 echo "Creating Ingress..."
 kubectl apply -f ingress.yaml
 
